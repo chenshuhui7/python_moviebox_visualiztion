@@ -1,252 +1,115 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 14 12:42:05 2021
+Spyder Editor
 
-@author: 15209
+This is a temporary script file.
+
+1.BeautifulSoup4将复杂HTML文档转换成一个复杂的树形结构,每个节点都是Python对象,
+
+2.对于该网站信息，设置了登录验证，所以需要用到cookie信息登录，设置请求头
 """
 
-from pyecharts import Bar
-from pyecharts import Line
-from pyecharts import Pie
- #折线图,条形图，饼状图
-from pyecharts import Page
-from pyecharts import Grid
+import  requests
+from bs4 import BeautifulSoup  #处理html数据的库
+import xlwt
 
-import pandas as pd
-import re         #正则表达式
+base_url = "http://58921.com"
+year_url = "http://58921.com/alltime/"   #后面变动的是年份
 
+headers = {
+   # Cookie 登录验证
+  "Cookie":"Hm_lvt_e71d0b417f75981e161a94970becbb1b=1623585188,1623585225,1623585266,1623596664; Hm_lpvt_e71d0b417f75981e161a94970becbb1b=1623598151; time=MTEzNTI2LjIxNjM0Mi4xMDI4MTYuMTA3MTAwLjExMTM4NC4yMDc3NzQuMTE5OTUyLjExMTM4NC4xMDQ5NTguMTE1NjY4LjEwNzEwMC4xMDkyNDIuMTEzNTI2LjEyMjA5NC4xMTk5NTIuMTA0OTU4LjExOTk1Mi4xMDcxMDAuMA%3D%3D; DIDA642a4585eb3d6e32fdaa37b44468fb6c=cv2800gehusdkfppi0trf062o0; remember=MTEzNTI2LjIxNjM0Mi4xMDI4MTYuMTA3MTAwLjExMTM4NC4yMDc3NzQuMTE5OTUyLjExMTM4NC4xMDQ5NTguMA%3D%3D",
+   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+}
 
-
-page1=Page("中国电影票房")
-page2=Page("电影票房比较")
-grid = Grid("电影票房比较",width=1000,height=800)
-
-
-#读取excel表的数据
-excel_file20 = '2020年票房排行榜.xls'
-excel_file19 = '2019年票房排行榜.xls'
-excel_file18 = '2018年票房排行榜.xls'
-excel_file11 = '2011年票房排行榜.xls'
-excel_file10 = '2010年票房排行榜.xls'
-
-# file20 = pd.read_excel(excel_file20)
-# file19 = pd.read_excel(excel_file19)
-# file11 = pd.read_excel(excel_file11)
-# file10 = pd.read_excel(excel_file10)
-
-def to_list(file):
-
-    files = pd.read_excel(file,usecols=[0,1,2,3,6]) #选取五列数据
-    df_li = files.values.tolist()  #每一行为一个列表
-    return df_li
-   
-    
-        
-def doline(filename):
-    data_list = to_list(filename)
-    ranks = []  #该年度排名
-    Hranks = []   #电影总排名
-    movie_names = [] #电影名称
-    movie_boxs = []  #电影票房
-    year = filename[0:4]  #通过excel命名前四个来表示年份
-    for data in data_list[0:10]:   #选取前20个 
-        ranks.append(data[0])
-        Hranks.append(data[1])
-        movie_names.append(data[2])
-        # if '亿' in data[3]:
-           # boxs = re.search(r"\d+\.?\d*" ,data[3]).group()#字符串，有单位
-           # boxs = boxs*10000    #亿转成万
-        # else:
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs.append(boxs)
-       
-       
-    columns=['年度排名','历史排名','总票房']
-    if year=='2020':
-       line = Line("{}年电影".format(year),'票房单位万')      #用新版出现bug,老版本无法重构位置吗？
+def get_html(url,encoding):
+    response = requests.get(url,headers=headers) 
+    if response.status_code == 200:   #200：请求正常，服务器正常的返回数据。
+        response.encoding = encoding   #将网页请求返回的结果按照网页的编码来（此网页是utf-8编码）
+        return response.text
     else:
-       line = Line("{}年电影".format(year),'票房单位亿')
+        return None
 
-    
-    for i in range(10):
-       datai = [ranks[i],Hranks[i],movie_boxs[i]]
-       line.add(movie_names[i],columns,datai,is_lable_show=True)
-     
-    
-        # 添加要展示的图表，并设置显示位置
-   # grid.add(line, grid_bottom="60%", grid_right="60%")
-    page1.add(line)    
 
-def doBar():
-    data_list1 = to_list(excel_file10)
-    data_list2 = to_list(excel_file11)
-    data_list3 = to_list(excel_file18)
-    data_list4 = to_list(excel_file19)  #不比较2020 票房太差了 没有可比性
-
-    # year1 = excel_file10[0:4]  #通过excel命名前四个来表示年份
-    # year2 = excel_file11[0:4]  
-    # year3 = excel_file18[0:4] 
-    # year4 = excel_file19[0:4] 
+def year_list(url):
+    """网页源代码访问 'http://58921.com/alltime/2019?page=1' 网页的第二页
+       该函数功能为：得到改年份的所有电影。
+    """
+   
+    year = url.split("/alltime/")[1]  #此处表示2019，指分割得到第二个为年份
+    year_list = []
     
-    ranks1 = []  #该年度排名  data[0]
-    ranks2 = [] 
-    ranks3 = []
-    ranks4 = [] 
     
-    movie_names1 = [] #电影名称  data[2]
-    movie_names2 = [] 
-    movie_names3 = [] 
-    movie_names4 = [] 
+    # 获取页数
+    html = get_html(url,encoding="utf-8")         #注意！！！！！！这里不写中文会乱码！！！
+    soup = BeautifulSoup(html, "html.parser")     #html解码器
+    item_list = soup.find("div",class_="item-list") 
+    #注意！！class_下划线 不然会报错。div作为标记头，class作为标记，表示网页下面表示页数的整体代码，
+    #每页代码为列表元素
     
-    movie_boxs1 = [] 
-    movie_boxs2 = []  #电影票房   data[3]
-    movie_boxs3 = []
-    movie_boxs4 = [] 
+    if item_list is not None:  
+        pager_number = item_list.find("li", class_="pager_count").find("span",class_="pager_number").get_text()
+        #因为网页页码处，总记录和页次，有相同的头标span,class，所以选择逐层找到
+        page = int(pager_number.split("/")[1])  #表示总页数 2/27 代指27
+    else:
+        page = 1
     
-    for data in data_list1[0:20]:   #选取前10个 
-        ranks1.append(data[0])
-        movie_names1.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs1.append(boxs)
+    f=open("电影票房.csv","a",encoding='utf-8')
+    for i in range(0,page):
+        page_url = '{}?page={}'.format(url,i)    #翻页网址，搜索该年份所有电影
+       # print(page_url)
         
-    for data in data_list2[0:20]:   #选取前10个 
-        ranks2.append(data[0])
-        movie_names2.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs2.append(boxs)
-   
-    for data in data_list3[0:20]:
-         ranks3.append(data[0])
-         movie_names3.append(data[2])
-         boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-         movie_boxs3.append(boxs)
-    for data in data_list4[0:20]:
-        ranks4.append(data[0])
-        movie_names4.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs4.append(boxs)
-          
-       
-   
-    bar = Bar("电影年度比较","2010，2011，2018,2019,票房单位为亿")
-    
-    attrs1 = ["第{}".format(i+1) for i in range(20)]
-    # attrs2 = ["11年-{}-{}".format(i+1,movie_names2[i]) for i in range(20)]
-    # attrs3 = ["18年-{}-{}".format(i+1,movie_names3[i]) for i in range(20)]
-    # attrs4 = ["19年-{}-{}".format(i+1,movie_names4[i]) for i in range(20)]
-    
-    
-    v1 = [j for j in movie_boxs1[:20]]
-    v2 = [j for j in movie_boxs2[:20]]
-    v3 = [j for j in movie_boxs3[:20]]
-    v4 = [j for j in movie_boxs4[:20]]
- 
-    bar.add('2010',attrs1,v1,is_label_show=True, is_datazoom_show=True)    #2010年
-    bar.add('2011',attrs1,v2,is_label_show=True, is_datazoom_show=True)    #2011年
-    bar.add('2018',attrs1,v3,is_label_show=True, is_datazoom_show=True)    #2018年
-    bar.add('2019',attrs1,v4,is_label_show=True, is_datazoom_show=True)    #2019年
-    
-   
-    grid.add(bar,grid_bottom="60%")
- 
-    # for i in range(5):
-    #    datai = [ranks2[i],movie_boxs2[i]]
-    #    bar.add(movie_names2[i],columns,datai,is_stack=True,mark_line=["min", "max"])    #2011年
-       
-    # grid.add(bar)
-      
-    # for i in range(5):
-    #     datai = [ranks3[i],movie_boxs3[i]]
-    #     bar.add(movie_names3[i],columns,datai,is_stack=True,mark_line=["min", "max"])    #2018年
-    # grid.add(bar)   
-    
-    # for i in range(5):
-    #     datai = [ranks4[i],movie_boxs4[i]]
-    #     bar.add(movie_names4[i],columns,datai,is_stack=True,mark_line=["min", "max"])    #2019年
-    # grid.add(bar)
+        html = get_html(page_url,encoding="utf-8")
+        soup = BeautifulSoup(html, "html.parser")
         
+        content = soup.find("div",class_="table-responsive") #主体内容
+        
+        if content is not None:
+            trs =content.table.tbody.find_all("tr")  #每一行数据存于trs列表
+            for tr in trs:
+                movie_info = []
+                tcs = tr.find_all("td")         #电影的每列属性
+                for index,tc in enumerate(tcs): #用于将一个可遍历的列表tds，同时列出数据下标和数据
+                    # print(td)
+                    if index == 3:      #第四列，票房是图片链接！
+                        movie_info.append(tc.img['src'])
+                    
+                    else:
+                        movie_info.append(tc.get_text())
+                f.write(",".join(movie_info).strip())
+                f.write("\n")
+                year_list.append(movie_info)
+        else:
+            print("无该页数据")
+    f.close()        
+    print(year_list)
+    save_to_excel("./{}年票房排行榜.xls".format(year),year_list)
+    
+ #网上学的
+def save_to_excel(savepath,datalist):
+    book = xlwt.Workbook(encoding="utf-8", style_compression=0)  # 创建workbook对象
+    sheet = book.add_sheet('票房排行榜', cell_overwrite_ok=True)  # 创建工作表
+    col = ("年度排名", "历史排名", "电影名称", "总票房", "总人次", "总场次","上映年份","操作")
+    for i in range(0,8):
+        sheet.write(0, i, col[i])  # 列名
+    for i in range(0, len(datalist)):
+        print("第{}条".format(i + 1))
+        data = datalist[i]
+        if len(data) >= 8:# 数据完整才保存
+            for j in range(0, 8):
+                sheet.write(i + 1, j, data[j])
+    book.save(savepath)  # 保存
 
-def doall_line():
-    data_list1 = to_list(excel_file10)
-    data_list2 = to_list(excel_file11)
-    data_list3 = to_list(excel_file18)
-    data_list4 = to_list(excel_file19)  #不比较2020 票房太差了 没有可比性
-    
-    ranks1 = []  #该年度排名  data[0]
-    ranks2 = [] 
-    ranks3 = []
-    ranks4 = [] 
-    
-    movie_names1 = [] #电影名称  data[2]
-    movie_names2 = [] 
-    movie_names3 = [] 
-    movie_names4 = [] 
-    
-    movie_boxs1 = [] 
-    movie_boxs2 = []  #电影票房   data[3]
-    movie_boxs3 = []
-    movie_boxs4 = [] 
-    
-    for data in data_list1[0:20]:   #选取前10个 
-        ranks1.append(data[0])
-        movie_names1.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs1.append(boxs)
-        
-    for data in data_list2[0:20]:   #选取前10个 
-        ranks2.append(data[0])
-        movie_names2.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs2.append(boxs)
-   
-    for data in data_list3[0:20]:
-         ranks3.append(data[0])
-         movie_names3.append(data[2])
-         boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-         movie_boxs3.append(boxs)
-    for data in data_list4[0:20]:
-        ranks4.append(data[0])
-        movie_names4.append(data[2])
-        boxs = re.search(r"\d+\.?\d*" ,data[3]).group()   
-        movie_boxs4.append(boxs)
-          
-       
-   
-    line = Line("电影年度比较","2010，2011，2018,2019")
-    
-    attrs1 = ["10年-{}-{}".format(i+1,movie_names2[i]) for i in range(20)]
-    attrs2 = ["11年-{}-{}".format(i+1,movie_names2[i]) for i in range(20)]
-    attrs3 = ["18年-{}-{}".format(i+1,movie_names3[i]) for i in range(20)]
-    attrs4 = ["19年-{}-{}".format(i+1,movie_names4[i]) for i in range(20)]
-    
-    #如何给点命名！！散点图
-    v1 = [j for j in movie_boxs1[:20]]
-    v2 = [j for j in movie_boxs2[:20]]
-    v3 = [j for j in movie_boxs3[:20]]
-    v4 = [j for j in movie_boxs4[:20]]
- 
-    line.add('2010',attrs1,v1, mark_point=["average"])    #2010年
-    line.add('2011',attrs2,v2,is_smooth=True)    #2011年
-    line.add('2018',attrs3,v3,is_smooth=True)    #2018年
-    line.add('2019',attrs4,v4,mark_point=["average"], mark_line=["max", "min"])    #2019年
-    
-    grid.add(line,grid_top="60%")
-   
-    
+
+
+def url_list():
+    """拼接url"""
+    return [year_url+str(i) for i in range(2018,2021)]
+
 def main():
-    #顺序表示折线图
-    doline(excel_file20)
-    doline(excel_file19)
-    doline(excel_file11)
-    doline(excel_file10)
-    page1.render("movie.html")  
-    
-    doBar()
-    #page2.render("compare.html")
-    doall_line()
-    grid.render("compare.html")
-    
-    
+    for url in url_list():
+       year_list(url)
+       
 
 if __name__ == '__main__':
     main()
